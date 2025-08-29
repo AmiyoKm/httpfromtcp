@@ -16,14 +16,6 @@ func isValidMethod(method string) bool {
 	return validMethods[method]
 }
 
-var validHttpVersions = map[string]bool{
-	"1.1": true,
-}
-
-func isValidHttpVersion(version string) bool {
-	return validHttpVersions[version]
-}
-
 func isValidTarget(target string) bool {
 	if !strings.HasPrefix(target, "/") {
 		return false
