@@ -22,12 +22,12 @@ func main() {
 			fmt.Println("could not accept connection:", err)
 			continue
 		}
-		fmt.Println("connection accepted")
+		fmt.Println("tcp connection accepted")
 		linesChan := getLinesChannel(conn)
 		for line := range linesChan {
 			fmt.Println(line)
 		}
-		fmt.Println("connection closed")
+		fmt.Println("tcp connection closed")
 	}
 }
 
