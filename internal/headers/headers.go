@@ -58,7 +58,12 @@ func (h *Headers) Get(key string) string {
 }
 
 func (h *Headers) Set(key string, val string) {
-	h.headers[strings.ToLower(key)] = val
+	key = strings.ToLower(key)
+	if v, ok := h.headers[key]; ok {
+		h.headers[key] = v + "," + val
+	} else {
+		h.headers[key] = val
+	}
 }
 
 func (h *Headers) Parse(data []byte) (int, bool, error) {
