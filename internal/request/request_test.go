@@ -1,11 +1,10 @@
-package request_test
+package request
 
 import (
 	"io"
 	"strings"
 	"testing"
 
-	"github.com/AmiyoKm/httpfromtcp/internal/request"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -99,7 +98,7 @@ func TestRequestLineParse(t *testing.T) {
 				reader = strings.NewReader(tc.input)
 			}
 
-			r, err := request.RequestFromReader(reader)
+			r, err := RequestFromReader(reader)
 
 			if tc.expectError {
 				require.Error(t, err)
@@ -121,18 +120,104 @@ func TestParseHeaders(t *testing.T) {
 		data:            "GET / HTTP/1.1\r\nHost: localhost:42069\r\nUser-Agent: curl/7.81.0\r\nAccept: */*\r\n\r\n",
 		numBytesPerRead: 3,
 	}
-	r, err := request.RequestFromReader(reader)
+	r, err := RequestFromReader(reader)
 	require.NoError(t, err)
 	require.NotNil(t, r)
-	assert.Equal(t, "localhost:42069", r.Headers.Get("host"))
-	assert.Equal(t, "curl/7.81.0", r.Headers.Get("user-agent"))
-	assert.Equal(t, "*/*", r.Headers.Get("accept"))
+
+	val, _ := r.Headers.Get("host")
+	assert.Equal(t, "localhost:42069", val)
+
+	val, _ = r.Headers.Get("user-agent")
+	assert.Equal(t, "curl/7.81.0", val)
+
+	val, _ = r.Headers.Get("accept")
+	assert.Equal(t, "*/*", val)
 
 	// Test: Malformed Header
 	reader = &chunkReader{
 		data:            "GET / HTTP/1.1\r\nHost localhost:42069\r\n\r\n",
 		numBytesPerRead: 3,
 	}
-	r, err = request.RequestFromReader(reader)
+	r, err = RequestFromReader(reader)
 	require.Error(t, err)
+}
+
+func TestParseBody(t *testing.T) {
+	// Test: Standard Body
+	ttb := []struct {
+		name        string
+		data        string
+		chunkSize   int
+		expectError bool
+		expectedBody string
+	}{
+		{
+			name: "Standard Body",
+			data: "POST /submit HTTP/1.1\r\n" +
+				"Host: localhost:42069\r\n" +
+				"Content-Length: 13\r\n" +
+				"\r\n" +
+				"hello world!\n",
+			chunkSize: 3,
+			expectError: false,
+			expectedBody: "hello world!\n",
+		},
+		{
+			name: "Empty Body, 0 reported content length",
+			data: "POST /submit HTTP/1.1\r\n" +
+				"Host: localhost:42069\r\n" +
+				"Content-Length: 0\r\n" +
+				"\r\n",
+			chunkSize: 3,
+			expectError: false,
+			expectedBody: "",
+		},
+		{
+			name: "Empty Body, no reported content length",
+			data: "POST /submit HTTP/1.1\r\n" +
+				"Host: localhost:42069\r\n" +
+				"\r\n",
+			chunkSize: 3,
+			expectError: false,
+			expectedBody: "",
+		},
+		{
+			name: "Body shorter than reported content length",
+			data: "POST /submit HTTP/1.1\r\n" +
+				"Host: localhost:42069\r\n" +
+				"Content-Length: 20\r\n" +
+				"\r\n" +
+				"partial content",
+			chunkSize: 3,
+			expectError: true,
+			expectedBody: "",
+		},
+		{
+			name: "No Content-Length but Body Exists",
+			data: "POST /submit HTTP/1.1\r\n" +
+				"Host: localhost:42069\r\n" +
+				"\r\n" +
+				"body without length",
+			chunkSize: 3,
+			expectError: false,
+			expectedBody: "body without length",
+		},
+	}
+
+	for _, tc := range ttb {
+		t.Run(tc.name, func(t *testing.T) {
+			reader := &chunkReader{
+				data: tc.data,
+				numBytesPerRead: tc.chunkSize,
+			}
+			r, err := RequestFromReader(reader)
+			if tc.expectError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.NotNil(t, r)
+				assert.Equal(t, tc.expectedBody, string(r.Body))
+			}
+		})
+	}
 }

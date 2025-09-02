@@ -14,7 +14,8 @@ func TestParse(t *testing.T) {
 	n, done, err := headers.Parse(data)
 	require.NoError(t, err)
 	require.NotNil(t, headers)
-	assert.Equal(t, "localhost:42069", headers.Get("HOST"))
+	val, _ := headers.Get("HOST")
+	assert.Equal(t, "localhost:42069", val)
 	assert.Equal(t, 25, n)
 	assert.True(t, done)
 
@@ -31,7 +32,8 @@ func TestParse(t *testing.T) {
 	n, done, err = headers.Parse(data)
 	require.NoError(t, err)
 	require.NotNil(t, headers)
-	assert.Equal(t, "localhost:42069,localhost:42068", headers.Get("HOST"))
+	val, _ = headers.Get("HOST")
+	assert.Equal(t, "localhost:42069,localhost:42068", val)
 	assert.Equal(t, 46, n)
 	assert.False(t, done)
 }
