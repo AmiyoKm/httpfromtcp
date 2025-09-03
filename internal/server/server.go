@@ -1,11 +1,8 @@
 package server
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 	"net"
-	"strconv"
 	"sync/atomic"
 
 	"github.com/AmiyoKm/httpfromtcp/internal/request"
@@ -64,33 +61,16 @@ func (s *Server) listen() {
 func (s *Server) handle(conn net.Conn) {
 	defer conn.Close()
 
-	fmt.Println("Connection received, reading request...")
-	headers := response.GetDefaultHeaders(0)
+	responseWriter := response.NewWriter(conn)
 
 	req, err := request.RequestFromReader(conn)
 	if err != nil {
-		response.WriteStatusLine(conn, response.StatusBadRequest)
-		response.WriteHeaders(conn, headers)
+		responseWriter.WriteStatusLine(response.StatusBadRequest)
+		responseWriter.WriteHeaders(*response.GetDefaultHeaders(0))
 		return
 	}
 
-	writer := bytes.NewBuffer([]byte{})
-	handlerErr := s.handler(writer, req)
-
-	var body []byte
-	var status response.StatusCode = response.StatusOK
-	if handlerErr != nil {
-		status = handlerErr.StatusCode
-		body = []byte(handlerErr.Message)
-	} else {
-		body = writer.Bytes()
-	}
-
-	response.WriteStatusLine(conn, status)
-	headers.Replace("Content-Length", strconv.Itoa(len(body)))
-	response.WriteHeaders(conn, headers)
-
-	conn.Write(body)
+	s.handler(responseWriter, req)
 }
 
 type HandlerError struct {
@@ -98,4 +78,4 @@ type HandlerError struct {
 	Message    string
 }
 
-type Handler func(w io.Writer, req *request.Request) *HandlerError
+type Handler func(w *response.Writer, req *request.Request)

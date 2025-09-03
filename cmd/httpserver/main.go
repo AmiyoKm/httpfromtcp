@@ -1,10 +1,10 @@
 package main
 
 import (
-	"io"
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 
 	"github.com/AmiyoKm/httpfromtcp/internal/request"
@@ -14,23 +14,30 @@ import (
 
 const port = 42069
 
-var handler = server.Handler(func(w io.Writer, r *request.Request) *server.HandlerError {
+var handler = server.Handler(func(w *response.Writer, r *request.Request) {
+	headers := response.GetDefaultHeaders(0)
+	headers.Replace("Content-Type", "text/html")
 	switch r.RequestLine.RequestTarget {
 	case "/yourproblem":
-		return &server.HandlerError{
-			StatusCode: response.StatusBadRequest,
-			Message:    "Your problem is not my problem\n",
-		}
+		body := respond400()
+		w.WriteStatusLine(response.StatusBadRequest)
+		headers.Replace("Content-Length", strconv.Itoa(len(body)))
+		w.WriteHeaders(*headers)
+		w.WriteBody(respond400())
 	case "/myproblem":
-		return &server.HandlerError{
-			StatusCode: response.StatusInternalServerError,
-			Message:    "Woopsie, my bad\n",
-		}
-	default:
-		w.Write([]byte("All good, frfr\n"))
-	}
+		body := respond500()
 
-	return nil
+		w.WriteStatusLine(response.StatusInternalServerError)
+		headers.Replace("Content-Length", strconv.Itoa(len(body)))
+		w.WriteHeaders(*headers)
+		w.WriteBody(respond500())
+	default:
+		body := respond200()
+		w.WriteStatusLine(response.StatusOK)
+		headers.Replace("Content-Length", strconv.Itoa(len(body)))
+		w.WriteHeaders(*headers)
+		w.WriteBody(respond200())
+	}
 })
 
 func main() {
