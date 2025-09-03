@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"log/slog"
 	"strconv"
 
 	"github.com/AmiyoKm/httpfromtcp/internal/headers"
@@ -57,6 +58,7 @@ func (r *Request) parse(data []byte) (int, error) {
 outer:
 	for {
 		currentData := data[read:]
+		slog.Info("PARSING#DATA", "CURR", string(data), "length", len(data))
 		if len(currentData) == 0 {
 			break outer
 		}
@@ -95,27 +97,25 @@ outer:
 
 			if done {
 				r.state = StateBody
+				length := getInt(r.Headers, "content-length", 0)
+				if length == 0 {
+					r.state = StateDone
+				}
 			}
+
 		case StateBody:
 			length := getInt(r.Headers, "content-length", -1)
 
-			if length >= 0 {
-				// Content-Length specified - read exactly that many bytes
-				remaining := min(length-len(r.Body), len(currentData))
-				if remaining > 0 {
-					r.Body = append(r.Body, currentData[:remaining]...)
-					read += remaining
+			if length == 0 {
+				panic("chunked not implemented")
+			}
 
-					if len(r.Body) >= length {
-						r.state = StateDone
-					}
-				} else {
-					r.state = StateDone
-				}
-			} else {
-				// No Content-Length - consume all remaining data as body
-				r.Body = append(r.Body, currentData...)
-				read += len(currentData)
+			remaining := min(length-len(r.Body), len(currentData))
+			r.Body = append(r.Body, currentData[:remaining]...)
+			read += remaining
+
+			if len(r.Body) == length {
+				r.state = StateDone
 			}
 
 		case StateDone:
@@ -184,33 +184,17 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 	for !request.done() && !request.error() {
 		n, err := reader.Read(buf[bufLen:])
 		if err != nil {
-			if err == io.EOF {
-				// Handle incomplete body if Content-Length is set
-				contentLength := getInt(request.Headers, "content-length", -1)
-				if contentLength > 0 && len(request.Body) < contentLength {
-					return nil, fmt.Errorf("body shorter than reported content-length: got %d, expected %d",
-						len(request.Body), contentLength)
-				}
-				// If headers and body are parsed, mark as done
-				if request.state == StateBody {
-					request.state = StateDone
-				}
-				break
-
-			} else {
-				return nil, err
-			}
+			return nil, err
 		}
 
-		if n > 0 {
-			bufLen += n
-			readN, parseErr := request.parse(buf[:bufLen])
-			if parseErr != nil {
-				return nil, parseErr
-			}
-			copy(buf, buf[readN:bufLen])
-			bufLen -= readN
+		bufLen += n
+		readN, err := request.parse(buf[:bufLen])
+		slog.Info("REQUST_FROM_READER", "readN", readN, "buf", string(buf[:bufLen]))
+		if err != nil {
+			return nil, err
 		}
+		copy(buf, buf[readN:bufLen])
+		bufLen -= readN
 	}
 	return request, nil
 }
