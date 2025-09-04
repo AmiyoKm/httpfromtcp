@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -45,13 +44,12 @@ var handler = server.Handler(func(w *response.Writer, r *request.Request) {
 			if err != nil {
 				break
 			}
-			w.WriteBody([]byte(fmt.Sprintf("%x\r\n", n)))
-			w.WriteBody(data[:n])
-			w.WriteBody([]byte("\r\n"))
+			w.WriteChunkedBody(data[:n])
 		}
-		w.WriteBody([]byte("0\r\n\r\n"))
+		w.WriteChunkedBodyDone()
 		return
 	}
+
 	switch r.RequestLine.RequestTarget {
 	case "/yourproblem":
 		body := respond400()
