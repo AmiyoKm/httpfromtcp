@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -75,6 +76,25 @@ var handler = server.Handler(func(w *response.Writer, r *request.Request) {
 		h.Replace("Content-Length", strconv.Itoa(len(body)))
 		w.WriteHeaders(*h)
 		w.WriteBody(body)
+
+	case "/video":
+
+		body, err := os.ReadFile("assets/vim.mp4")
+		if err != nil {
+			body = respond500()
+			w.WriteStatusLine(response.StatusInternalServerError)
+			w.WriteHeaders(*h)
+			h.Replace("Content-Length", strconv.Itoa(len(body)))
+			w.WriteBody(body)
+			return
+		}
+
+		w.WriteStatusLine(response.StatusOK)
+		h.Replace("Content-Type", "video/mp4")
+		h.Replace("Content-Length", strconv.Itoa(len(body)))
+		w.WriteHeaders(*h)
+		w.WriteBody(body)
+
 	default:
 		body := respond200()
 		w.WriteStatusLine(response.StatusOK)

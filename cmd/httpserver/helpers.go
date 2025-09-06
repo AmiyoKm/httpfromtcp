@@ -37,7 +37,6 @@ func respond200() []byte {
   <body>
     <h1>Success!</h1>
     <p>Your request was an absolute banger.</p>
-		headers.Replace("Content-Type", "text/html")
   </body>
 </html>`)
 }
