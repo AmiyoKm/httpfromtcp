@@ -1,5 +1,10 @@
 package main
 
+import (
+	"bytes"
+	"fmt"
+)
+
 func respond400() []byte {
 	return []byte(`<html>
   <head>
@@ -32,7 +37,15 @@ func respond200() []byte {
   <body>
     <h1>Success!</h1>
     <p>Your request was an absolute banger.</p>
-		headers.Replace("Content-Type", "text/html")
   </body>
 </html>`)
+}
+
+func toStr(byt []byte) string {
+	out := bytes.Buffer{}
+
+	for _, b := range byt {
+		out.Write([]byte(fmt.Sprintf("%02x", b)))
+	}
+	return out.String()
 }

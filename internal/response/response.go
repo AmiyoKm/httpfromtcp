@@ -50,6 +50,36 @@ func (w *Writer) WriteBody(p []byte) (int, error) {
 	return n, err
 }
 
+func (w *Writer) WriteChunkedBody(p []byte) (int, error) {
+	if len(p) == 0 {
+		return 0, nil
+	}
+
+	chunkSize := fmt.Sprintf("%x\r\n", len(p))
+	_, err := w.writer.Write([]byte(chunkSize))
+	if err != nil {
+		return 0, err
+	}
+
+	n, err := w.writer.Write(p)
+	if err != nil {
+		return n, err
+	}
+
+	_, err = w.writer.Write([]byte("\r\n"))
+	if err != nil {
+		return n, err
+	}
+
+	return n, nil
+}
+
+func (w *Writer) WriteChunkedBodyDone() (int, error) {
+	finalChunk := []byte("0\r\n")
+	n, err := w.writer.Write(finalChunk)
+	return n, err
+}
+
 const (
 	StatusOK                  StatusCode = 200
 	StatusBadRequest          StatusCode = 400
